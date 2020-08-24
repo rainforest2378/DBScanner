@@ -73,10 +73,19 @@ def check1():
     # 获取传入的参数
     get_Data = request.get_data()
     # 传入的参数为bytes类型，需要转化成json
+
     get_Data = json.loads(get_Data)
     ConfigID = get_Data.get('ConfigID')
+    if ConfigID is None:
+        return_dict['return_code'] = '5004'
+        return_dict['return_info'] = 'ConfigID为空'
+        return json.dumps(return_dict, ensure_ascii=False)
     #IPRange = get_Data.get('IPRange')
     serviceName = get_Data.get('serviceName')
+    if serviceName is None:
+        return_dict['return_code'] = '5004'
+        return_dict['return_info'] = 'serviceName为空'
+        return json.dumps(return_dict, ensure_ascii=False)
     startTime = get_Data.get('startTime')
     intervalTime=get_Data.get('intervalTime')
     endTime = get_Data.get('endTime')
@@ -137,8 +146,16 @@ def check2():
     # 传入的参数为bytes类型，需要转化成json
     get_Data = json.loads(get_Data)
     IPRange = get_Data.get('IPRange')
+    if IPRange is None:
+        return_dict['return_code'] = '5004'
+        return_dict['return_info'] = 'IPRange为空'
+        return json.dumps(return_dict, ensure_ascii=False)
     serviceName = get_Data.get('serviceName')
     startTime = get_Data.get('startTime')
+    if startTime is None:
+        return_dict['return_code'] = '5004'
+        return_dict['return_info'] = '开始时间为空'
+        return json.dumps(return_dict, ensure_ascii=False)
     intervalTime=get_Data.get('intervalTime')
     endTime = get_Data.get('endTime')
     repeatTimes = get_Data.get('repeatTimes')
