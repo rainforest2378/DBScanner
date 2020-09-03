@@ -4,8 +4,8 @@
 
 ![dbscan](https://github.com/rainforest2378/a1/blob/master/DBSCAN.png "system")
 ## 功能
-api.py--提供http接口进行新增配置、配置更新、扫描结果读取
-dbscan.py--数据库和表扫描
+api.py--提供http接口进行新增配置、配置更新、扫描结果读取  
+dbscan.py--数据库和表扫描  
 tablescan.py--表结构扫描
 
 -----
@@ -48,7 +48,7 @@ nmap -v
 pip3 install flask nmap logging pymysql json
 ```
 ## 使用
-将mysql.lua放入usr/share/nmap/nselib
+将mysql.lua放入usr/share/nmap/nselib  
 将mysqldatabase.nse、mysqldatabase2x.nse、mysqldatabase4x.nse放入usr/share/nmap/scripts/
 ```
 python3 api.py 
