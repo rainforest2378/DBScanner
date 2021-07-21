@@ -1,275 +1,290 @@
-from flask import Flask
-from flask import request
+
 import json
 import nmap
 import time, datetime
-# 创建flask对象
-#从数据库读取信息
+
 
 import pymysql
-#import pandas as pd
 
-def ff(s1):
-    #s1 = eval(repr(s).replace('\\x', ''))
-    print(s1)
-    # print(result)
-    # print(s.find("2"))
-    # s1='0200000401a0400000503abc1300000612information_schema0600000705mysql1300000812performance_schema040000	03sys05'
-    a = []
-    b = ''
-    l = len(s1)
-    flag = 0
-    for i in range(l):
-        if (s1[i].isalpha() or s1[i] == '_') and flag == 1 and s1[i]!='x':
-            b = b + s1[i]
-        elif (s1[i].isalpha() or s1[i] == '_') and flag == 0  and s1[i]!='x':
-            flag = 1
-            # count = i
-            b = b + s1[i]
-        elif s1[i].isdigit() and flag == 1:
-            flag = 0
-            a.append(b)
-            b = ''
-        elif s1[i].isdigit() and flag == 0:
-            pass
-        else:
-            pass
-    print(a)
-    return a
-def ff2(s):
-    for i in range(len(s)):
-        if (s[i].isalpha() or s[i] == '_' or s[i] == '\\' or s[i].isdigit()):
-            pass
-        else:
-            # print(hex((ord(a[i]))))
-            a = hex((ord(s[i])))
-            a = a.replace('0x', '\\x')
-            s = s.replace(s[i], a)
-            # print(s)
 
-    print(s)
-    s = s.replace('\t', '\\x09')
-    s = s.replace('\n', '\\x0A')
-    s = s.replace('\r', '\\x0D')
-    s=s.replace('%','\\x25')
-    print(s)
 
-    a = []
-    b = ''
-    l = len(s)
-    flag1 = 1
-    c = 0
-    count = 0
-    for i in range(l):
-        # print(c)
-        #print(count)
-        # print(s[i])
-        if s[i] == '\\':
-            c = 1
-            if flag1 == 1:
-                count = 1
-                if b != '':
-                    a.append(b)
-                b = ''
-                flag1 = 0
-            else:
-                count += 1
 
-        elif s[i] != '\\' and c != 4:
-            c += 1
-            continue
-        elif count == 5 and s[i] != '\\' and c == 4:
-            #print(s[i])
-
-            b = b + s[i]
-            #print(b)
-            flag1 = 1
-            continue
-        else:
-            pass
-    print(a)
-    return a
 
 # 功能函数
 #开始扫描服务信息
-def scan(id,service,hostIP,port):
-    # result_str = "%s今年%s岁" % (name, age)
-    print('----------------------------------------------------')
-
-    print('----------------------------------------------------')
-    nm = nmap.PortScanner(nmap_search_path=('nmap',r'D:\Nmap\nmap.exe'))
-    user=input("%s : please input user:" %hostIP)
-    password=input("%s : please input password:" %hostIP)
-    if user == '' or password=='':
+def service_scan_controller(IPRange,DBServiceType,startTime, intervalTime, endTime, repeatTimes, enable):
+    if enable==0:
         return 0
+    print('startTime',startTime)
 
-    a = nm.scan(hosts=hostIP, arguments='--script mysqldatabase --script-args mysqluser=root,mysqlpass=root', ports=port)
+    #current_time= datetime.datetime.now()
+    while datetime.datetime.now() < startTime:
+        time.sleep(1)
+    previous_time = datetime.datetime.now()
+    service_scan(IPRange)
+    if datetime.datetime.now() >= endTime:
+        return 0
+    if repeatTimes != 0:
+        for i in range(repeatTimes):
+            while (datetime.datetime.now() - previous_time).seconds < int(intervalTime) * 60:
+                time.sleep(1)
+            previous_time = datetime.datetime.now()
+            service_scan(IPRange)
+            # previous_time=datetime.datetime.now()
+            if datetime.datetime.now() >= endTime:
+                return 0
+
+def service_scan(hostIP):
+    print('start scan process:')
+    print('----------------------------------------------------')
+
+    nm = nmap.PortScanner(nmap_search_path=('nmap', r'/usr/share/nmap'))
+
+    sc = datetime.date.today().strftime("%Y-%m-%d")
+    wd = hostIP.split('.')[2]
+    arg = '-sV -sC -A -oN %s-dblog%s' % (wd, sc)
+    nm.scan(hosts=hostIP, arguments=arg, ports='3306')
+    conn = pymysql.connect(host='cdb-faqfehvo.bj.tencentcdb.com', port=10172, user='fyl_chj_txmysql',
+                           passwd='fyl@chjtxmysql', db='fyl', charset='utf8')
+
+    cursor = conn.cursor()
 
     for host in nm.all_hosts():  # 遍历扫描主机
-        print(host)
-
-        print('----------------------------------------------------')
-        #print('Host : %s (%s)' % (host, nm[host].hostname()))  # 输出主机及主机名
-        #print('State : %s' % nm[host].state())  # 输出主机状态，如up、down
-        #print(host)
-        #hostname = nm[host].hostnames()[0]['name']
-        hostip = host
-        hoststate = nm[hostIP].state()
-        scantime = a['nmap']['scanstats']['timestr']
 
         for proto in nm[host].all_protocols():  # 遍历扫描协议，如tcp、udp
-            # print('----------')
-            # print('Protocol : %s' % proto)  # 输入协议名
+
             protocal = proto
             lport = nm[host][proto].keys()  # 获取协议的所有扫描端口
             sorted(lport)  # 端口列表排序
 
             for sport in lport:  # 遍历端口及输出端口与状态，服务和版本信息
-                portstate = nm[host][proto][sport]['state']
                 service = nm[host][proto][sport]['name']
-                version = nm[host][proto][sport]['version']
-                output=nm[host][proto][sport]['script']
-                port = sport
-                print('port : %s\t state : %s\t service: %s\t version: %s  output:%s' % (port, portstate, service, version, output))
-                #print(output['mysqldatabase2'])
-                o=output['mysqldatabase']
-                db = ff(o)
-                res0=db
+                product = nm[host][proto][sport]['product']
+                s = " "
+                version = product + s + nm[host][proto][sport]['version']
 
 
-                for i in range(len(db)):
-                    print(i)
-                    print(db[i])
-                    argu = '--script mysqldatabase2x --script-args mysqluser=root,mysqlpass=root,db=%s' % db[i]
-                    print(argu)
-                    a = nm.scan(hosts=host,
-                                arguments=argu,
-                                ports='3306')
+                if service == "mysql" or service == "memcache" or service == "mongod" or service == "redis" or service == "thrift-binary":
+                    # scanDate= datetime.date.today().strftime("%Y-%m-%d")
+                    scanTime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-                    for host in nm.all_hosts():  # 遍历扫描主机
+                    sql1 = "insert into service_detection(service,version,hostIP,port,foundTime,protocal) VALUE (%s,%s,%s,%s,%s,%s)"
 
-                        print('----------------------------------------------------')
-                        print('Host : %s (%s)' % (host, nm[host].hostname()))  # 输出主机及主机名
-                        print('State : %s' % nm[host].state())  # 输出主机状态，如up、down
-                        print(host)
-                        hostname = nm[host].hostnames()[0]['name']
-                        hostip = host
-                        hoststate = nm[host].state()
-                        scantime = a['nmap']['scanstats']['timestr']
+                    cursor.execute(sql1, (service, version, host, sport, scanTime, protocal))
+                    conn.commit()
+    print('-------------------finish----------------------------')
 
-                        for proto in nm[host].all_protocols():  # 遍历扫描协议，如tcp、udp
-                            # print('----------')
-                            # print('Protocol : %s' % proto)  # 输入协议名
-                            protocal = proto
-                            lport = nm[host][proto].keys()  # 获取协议的所有扫描端口
-                            sorted(lport)  # 端口列表排序
+    cursor.close()
+    conn.close()
 
-                            for sport in lport:  # 遍历端口及输出端口与状态，服务和版本信息
-                                portstate = nm[host][proto][sport]['state']
-                                service = nm[host][proto][sport]['name']
-                                version = nm[host][proto][sport]['version']
-                                output = nm[host][proto][sport]['script']
-                                port = sport
-                                print('port : %s\t state : %s\t service: %s\t version: %s  output:%s' % (
-                                port, portstate, service, version, output))
-                                # print(output['mysqldatabase2'])
-                                o = output['mysqldatabase2x']
-                                db1 = ff2(o)
-                                diction[db[i]]=db1
+def db_tables_scan_controller(IP,port,user,password, startTime, intervalTime, endTime, repeatTimes, enable):
+    if enable == 0:
+        return 0
+
+    # current_time= datetime.datetime.now()
+    while datetime.datetime.now() < startTime:
+        time.sleep(1)
+
+    previous_time = datetime.datetime.now()
+    db_tables_scan(IP,port,user,password)
+    if datetime.datetime.now() >= endTime:
+        return 0
+    if repeatTimes != 0:
+        for i in range(repeatTimes):
+            while (datetime.datetime.now() - previous_time).seconds < int(intervalTime)*60:
+                time.sleep(1)
+            previous_time = datetime.datetime.now()
+            db_tables_scan(IP,port,user,password)
+            # previous_time=datetime.datetime.now()
+            if datetime.datetime.now() >= endTime:
+                return 0
 
 
+def db_tables_scan(hostIP, port, user, password):
+    # result_str = "%s今年%s岁" % (name, age)
+    print('-----------------db-table scan start-----------------------------------')
 
-                                #print(db1)
+    print('----------------------------------------------------')
+    nm = nmap.PortScanner(nmap_search_path=('nmap', r'/usr/share/nmap'))
+    #nm = nmap.PortScanner()
+    print('-------nm-----')
+
+    if user == '' or password == '':
+        print('return')
+        return 0
+    arg = '--script fyl-mysql-databases --script-args mysqluser=%s,mysqlpass=%s' % (user, password)
+    print(arg)
+    nm.scan(hosts=hostIP, arguments=arg, ports=port)
+    DBNames=[]
+    tableNames={}
+
+    for host in nm.all_hosts():  # 遍历扫描主机
+
+        for proto in nm[host].all_protocols():  # 遍历扫描协议，如tcp、udp
+            lport = nm[host][proto].keys()  # 获取协议的所有扫描端口
+            sorted(lport)  # 端口列表排序
+
+            for sport in lport:  # 遍历端口及输出端口与状态，服务和版本信息
+                try:
+                    output = nm[host][proto][sport]['script']
+
+                    db = output['fyl-mysql-databases']
+                    print(db)
+                    db=db.strip().split('\n')
+                    for i in range(len(db)):
+                        #print(i)
+                        #print(db[i])
+                        DBNames.append(db[i].strip())
+
+                except:
+                    return 0
+
+                for i in range(len(DBNames)):
+                    #print(DBNames[i])
+                    argu = '--script fyl2 --script-args mysqluser=%s,mysqlpass=%s,db=%s' % (user, password, DBNames[i])
+                    a = nm.scan(hosts=host, arguments=argu,ports=port)
+                    #print(a)
+                    #print(nm)
+
+                    #for host in nm.all_hosts():  # 遍历扫描主
+                    for proto in a['scan'][host].all_protocols():  # 遍历扫描协议，如tcp、udp
+                        lport = a['scan'][host][proto].keys()  # 获取协议的所有扫描端口
+                        sorted(lport)  # 端口列表排序
+
+                        for sport in lport:  # 遍历端口及输出端口与状态，服务和版本信息
+                            try:
+                                tables = a['scan'][host][proto][sport]['script']['fyl2']
+
+                            except:
+                                tables=''
+                                #print('error')
+                                #return 0
+                            table_list = tables.strip().split('\n')
+                            #print(table_list)
+                            tl = []
+                            for t in table_list:
+                                tl.append(t.strip())
+                            tableNames[DBNames[i]] = tl
 
 
-    #res0 = ','.join(res0)
-    #print(res)
-                res=diction
-                print(res)
-                data0='|'.join(res0)
-
-                #data0=json.dumps(res0)
-                data = json.dumps(res)
-                sql = "insert into DBTables(serviceID,DBNames,tableNames) VALUE (%s,%s,%s)"
-                cursor.execute(sql, (id, data0, data))
-                conn.commit()
 
 
+                # res0 = ','.join(res0)
+                # print(res)
 
-                    #sql = "insert into service_detection(serviceID,DBNames,tableNames) VALUE (%s,%s,%s);"
+                #print(res)
+                # data0='|'.join(res0)
 
+                # data0=json.dumps(res0)
+                #data = json.dumps(res)
+    DBNames=json.dumps(DBNames)
+    tableNames=json.dumps(tableNames)
+    foundTime=datetime.datetime.now()
+    conn = pymysql.connect(host='cdb-faqfehvo.bj.tencentcdb.com', port=10172, user='fyl_chj_txmysql',
+                           passwd='fyl@chjtxmysql', db='fyl', charset='utf8')
 
-                    #cursor = conn.cursor()
-            #cursor.execute(sql, (serviceID,DBNames,tableNames))
-            #conn.commit()
+    cursor = conn.cursor()
+    sql = "insert into db_tables(serviceIP,servicePort,DBNames,tableNames,foundTime) VALUE (%s,%s,%s,%s,%s)"
 
-
-
-
-
+    cursor.execute(sql, (hostIP,port,DBNames,tableNames,foundTime))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    print('scan ok')
 
 # 连接配置信息
-import json
-
-diction={}
-#data2 = json.dumps(data)
-print('Program now starts on %s')
-print('Executing...')
-
-conn = pymysql.connect(host='cdb-faqfehvo.bj.tencentcdb.com', port=10172, user='fyl_chj_txmysql',
-                       passwd='fyl@chjtxmysql', db='fyl', charset='utf8')
-cursor = conn.cursor()
-return_dict=[]
-# 执行sql语句
-
-#with conn.cursor() as cursor:
-sql = "select * from service_detection"
-cursor.execute(sql)
-result = cursor.fetchall()
-#finally:
-#conn.close();
-#df = pd.DataFrame(result)  # 转换成DataFrame格式
-print(result)
-#results=list(result)
-for it in result:
-    res = {}
-    res0=[]
-    print(it[0])
-    id=it[0]
-
-    service=it[1]
-    hostIP = it[3]
-    port = it[4]
-
-    print(id,service,hostIP,port)
-
-    #####
-    #if len(endTime)!=0:
-        #endTime = datetime.datetime.strptime(endTime, '%Y-%m-%d %H:%M:%S')
-        #eflg=1
-
-    #if len(startTime)!=0:
-        #startTime = datetime.datetime.strptime(startTime, '%Y-%m-%d %H:%M:%S')
-        #while datetime.datetime.now() < startTime:
-            #time.sleep(1)
-    #else:
-         #pass
-    #if repeatTimes != 0:
-        #for i in range(repeatTimes):
-            #scan(id,service,hostIP,port)
-
-            #if eflag == 1:
-                #if datetime.datetime.now() > endTime:
-                    #break
-
-    scan(id,service,hostIP,port)
 
 
+def table_struct_scan_controller(IP,port,user,password, DBName,tableName,startTime, intervalTime, endTime, repeatTimes, enable):
+    if enable == 0:
+        return 0
+
+    # current_time= datetime.datetime.now()
+    while datetime.datetime.now() < startTime:
+        time.sleep(1)
+
+    previous_time = datetime.datetime.now()
+    table_struct_scan(IP,port,user,password,DBName,tableName)
+    if datetime.datetime.now() >= endTime:
+        return 0
+    if repeatTimes != 0:
+        for i in range(repeatTimes):
+            while (datetime.datetime.now() - previous_time).seconds < int(intervalTime)*60:
+                time.sleep(1)
+            previous_time = datetime.datetime.now()
+            db_tables_scan(IP,port,user,password,DBName,tableName)
+            # previous_time=datetime.datetime.now()
+            if datetime.datetime.now() >= endTime:
+                return 0
+
+def table_struct_scan(host,port,user,password,DBName,tableName):
+    # result_str = "%s今年%s岁" % (name, age)
+    if user == '' or password == '':
+        return 0
+    print('--------------table struct scan start--------------------')
+    field = ['Field', 'Type', 'Null', 'Key', 'Default', 'Extra']
+    print('--------------nm--------------------')
+
+    #nm = nmap.PortScanner(nmap_search_path=('nmap',r'D:\Nmap\nmap.exe'))
+    nm = nmap.PortScanner(nmap_search_path=('nmap', r'/usr/share/nmap'))
+    arg='--script fyl3 --script-args mysqluser=%s,mysqlpass=%s,db=%s,table=%s'%(user,password,DBName,tableName)
+    print('--------------arg--------------------')
+    print(arg)
+    nm.scan(hosts=host, arguments=arg, ports=port)
+    print('nm.scan')
+    tableStruct=[]
+    for host in nm.all_hosts():  # 遍历扫描主机
+
+
+        for proto in nm[host].all_protocols():  # 遍历扫描协议，如tcp、udp
+            lport = nm[host][proto].keys()  # 获取协议的所有扫描端口
+            sorted(lport)  # 端口列表排序
+
+            for sport in lport:  # 遍历端口及输出端口与状态，服务和版本信息
+                try:
+                    output = nm[host][proto][sport]['script']
+                    db = output['fyl3']
+                    #print(db)
+                    #print(type(db))
+                    ab=db.strip().split('\n')
+                    print('------------------')
+                    print(ab)
+                    for i in ab:
+                        record=i.split(',')
+                        #print(len(record))
+                        d={}
+                        for i in range(6):
+                            d[field[i]]=record[i].strip()
+                            #print(d)
+
+                        tableStruct.append(d)
 
 
 
 
+                except:
+                    return 0
 
+
+                tableStruct = json.dumps(tableStruct)
+                print(tableStruct)
+                #tableNames = json.dumps(tableNames)
+                foundTime = datetime.datetime.now()
+                conn = pymysql.connect(host='cdb-faqfehvo.bj.tencentcdb.com', port=10172, user='fyl_chj_txmysql',
+                                       passwd='fyl@chjtxmysql', db='fyl', charset='utf8')
+
+                cur = conn.cursor()
+                sql = "insert into table_struct(serviceIP,servicePort,DBName,tableName,tableStruct,foundTime) VALUE (%s,%s,%s,%s,%s,%s)"
+
+                cur.execute(sql, (host, port, DBName, tableName,tableStruct, foundTime))
+                conn.commit()
+                cur.close()
+                conn.close()
+                print('scan ok')
+
+
+
+#db_tables_scan('10.10.103.150','3306','root','123456')
 
 
 
