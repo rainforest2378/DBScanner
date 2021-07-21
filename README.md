@@ -48,11 +48,10 @@ nmap -v
 pip3 install flask nmap logging pymysql json
 ```
 ## 使用
-将mysql.lua放入usr/share/nmap/nselib  
+将mysql.lua放入usr/share/nmap/nselib
 将mysqldatabase.nse、mysqldatabase2x.nse、mysqldatabase4x.nse放入usr/share/nmap/scripts/
 ```
 python3 api.py 
-python3 dbscan.py
-python3 tablescan.py
+python3 scan_engine.py
 ```
 ---
