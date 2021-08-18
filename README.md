@@ -2,7 +2,7 @@
 -------------
 ## 背景
 
-![dbscan](https://github.com/rainforest2378/a1/blob/master/DBSCAN.png "system")
+![dbscan](C:\Users\fanyu\Downloads\image.png)
 ## 功能
 api.py--提供http接口进行新增配置、配置更新、扫描结果读取  
 dbscan.py--数据库和表扫描  
